@@ -1,0 +1,196 @@
+UcStatUnit::UcStatUnit()
+{
+	PrimaryComponentTick.bCanEverTick =false;
+}
+
+void UcStatUnit::BeginPlay()
+{
+	Super::BeginPlay();
+	if (ifRegStmin || ifRegMP || ifRegHP) { regeneration(); }
+}
+
+void UcStatUnit::regeneration() {
+	if (ifRegHP) {
+		regHPTime += TimeDelay;
+		if (regHPTime >= HPRegCD) {
+			regHPTime = 0;
+			UnitHP = StatMaxMin(UnitHP + regHP, UnitHPMax, 0);
+			dUpdatHP.Broadcast();
+		}
+	}
+	if (ifRegMP) {
+		regMPTime += TimeDelay;
+		if (regMPTime >= MPRegCD) {
+			regMPTime = 0;
+			UnitMP = StatMaxMin(UnitMP + regMP, UnitMPMax, 0);
+			dUpdatMP.Broadcast();
+		}
+	}
+	if (ifRegStmin) {
+		regStminTime += TimeDelay;
+		if (regStminTime >= StminRegCD) {
+			regStminTime = 0;
+			UnitStam = StatMaxMin(UnitStam + regStmin, UnitMPMax, 0);
+			dUpdatStam.Broadcast();
+		}
+	}
+	FPlatformProcess::Sleep(TimeDelay);
+	if (ifRegStmin || ifRegMP || ifRegHP) { regeneration(); }
+}
+
+float UcStatUnit::StatMaxMin(float value, float max, float min) {
+	if (value > max) { value = max;
+	}else if (value < min) { value = min; }
+	return value;
+}
+
+void UcStatUnit::addStat(FStatInfo Stat) {
+	switch (Stat.stat)
+	{
+	case StatType::UnitHP:	UnitHP= StatMaxMin(UnitHP+ Stat.value, UnitHPMax, 0);
+		if (UnitHP <= 0) { dFUpdatDeath.Broadcast(); }
+		dUpdatHP.Broadcast();
+	case StatType::UnitHPMax:	UnitHPMax = StatMaxMin(UnitHPMax + Stat.value, StatMax, 0);
+		dUpdatHP.Broadcast();
+	case StatType::UnitMPMax:	UnitMPMax = StatMaxMin(UnitMPMax + Stat.value, StatMax, 0);
+		dUpdatMP.Broadcast();
+	case StatType::UnitStamMax:	UnitStamMax = StatMaxMin(UnitStamMax + Stat.value, StatMax, 0);
+		dUpdatStam.Broadcast();
+	case StatType::UnitMP:	UnitMP = StatMaxMin(UnitMP + Stat.value, UnitMPMax, 0);
+		if (ifDeathNoMP && UnitMP <= 0) { dFUpdatDeath.Broadcast(); }
+		dUpdatMP.Broadcast();
+	case StatType::UnitStam:	UnitStam = StatMaxMin(UnitStam + Stat.value, UnitMPMax, 0);
+		dUpdatStam.Broadcast();
+	case StatType::Attack:	Attack = StatMaxMin(Attack + Stat.value, StatMax, 0);
+	case StatType::Defender:	Defender = StatMaxMin(Defender + Stat.value, StatMax, 0);
+	case StatType::EvasionShans:	evasionShans = StatMaxMin(evasionShans + Stat.value, 100, 0);
+	case StatType::CretShans:	cretShans = StatMaxMin(cretShans + Stat.value, 100, 0);
+	case StatType::CretX:	cretX = StatMaxMin(cretX + Stat.value, CritXMax, 1);
+	case StatType::AddDMG:	addDMG = StatMaxMin(addDMG + Stat.value, StatMax, 0);
+	case StatType::AddDMGShans:	addDMGShans = StatMaxMin(addDMGShans + Stat.value, 100, 0);
+	case StatType::MicroStanShans:	microStanShans = StatMaxMin(microStanShans + Stat.value, 100, 0);
+	case StatType::RefreshDMGShans:	refreshDMGShans = StatMaxMin(refreshDMGShans + Stat.value, 100, 0);
+	case StatType::RefreshDMG:	refreshDMG = StatMaxMin(refreshDMG + Stat.value, StatMax, 0);
+	case StatType::RegHP:	regHP = StatMaxMin(regHP + Stat.value, regMax, 0);
+	case StatType::RegMP:	regMP = StatMaxMin(regMP + Stat.value, regMax, 0);
+	case StatType::RegStmin:	regStmin = StatMaxMin(regStmin + Stat.value, regMax, 0);
+	case StatType::StealHP:	stealHP = StatMaxMin(stealHP + Stat.value, stealMax, 0);
+	case StatType::StealMP:	stealMP = StatMaxMin(stealMP + Stat.value, stealMax, 0);
+	case StatType::StealStam:	stealStam = StatMaxMin(stealStam  + Stat.value, stealMax, 0);
+	case StatType::StealMax:	stealMax = StatMaxMin(stealMax + Stat.value, StatMax, 0);
+	case StatType::SpeedMove:	SpeedMove = StatMaxMin(SpeedMove + Stat.value, SpeedMoveMax, 0);
+	case StatType::Secrecy:	secrecy = StatMaxMin(secrecy + Stat.value, 100, 0);
+	case StatType::Accuracy:	accuracy = StatMaxMin(accuracy + Stat.value, 100, 0);
+	}
+}
+
+void UcStatUnit::addStats(TArray<FStatInfo> Stats) {
+	   for (FStatInfo e : Stats) {
+	 	   addStat(e);
+	   }
+}
+
+
+float UcStatUnit::getStat(StatType stat) {
+	switch (stat)
+	{
+	case StatType::UnitHP: return	UnitHP;
+    case StatType::UnitHPMax: return	UnitHPMax;
+	case StatType::UnitMPMax: return	UnitMPMax;
+	case StatType::UnitStamMax: return	UnitStamMax;
+	case StatType::UnitMP: return	UnitMP;
+	case StatType::UnitStam: return	UnitStam;
+	case StatType::Attack: return	Attack;
+	case StatType::Defender: return	Defender;
+	case StatType::EvasionShans: return	evasionShans;
+	case StatType::CretShans: return	cretShans;
+	case StatType::CretX: return cretX;
+	case StatType::AddDMG: return addDMG ;
+	case StatType::AddDMGShans: return	addDMGShans;
+	case StatType::MicroStanShans: return	microStanShans;
+	case StatType::RefreshDMGShans: return	refreshDMGShans;
+	case StatType::RefreshDMG: return	refreshDMG;
+	case StatType::RegHP: return regHP;
+	case StatType::RegMP: return regMP;
+	case StatType::RegStmin: return	regStmin;
+	case StatType::StealHP: return	stealHP;
+	case StatType::StealMP: return	stealMP;
+	case StatType::StealStam: return	stealStam;
+	case StatType::StealMax: return	stealMax;
+	case StatType::SpeedMove: return	SpeedMove;
+	case StatType::Secrecy: return	secrecy;
+	case StatType::Accuracy: return	accuracy;
+	}  
+	return 0.0;
+}
+ 
+
+bool UcStatUnit::ifHaveStat(FStatInfo Stat) {
+	bool out = false;
+	if (getStat(Stat.stat) >= Stat.value) { out = true; }
+	return out;
+}
+
+bool UcStatUnit::ifHaveStats(TArray<FStatInfo> Stats) {
+	bool out = true;
+	for (FStatInfo e : Stats) {
+		if (!ifHaveStat(e)) { out = false; break; }
+	}
+	return out;
+}
+bool UcStatUnit::isRandom(float shanc) {return (shanc <= FMath::FRandRange(0, 100));}
+
+bool UcStatUnit::StelStats(UcStatUnit* OwnerStel,StelStatType stilType, float value) {
+	bool out = false;
+	float shStil = 0;
+	FStatInfo infoStat = FStatInfo();
+	switch (stilType)
+	{
+	case StelStatType::HP: if (!BlockStealHP) { 
+		shStil = stealHP;  infoStat.stat = StatType::UnitHP;
+	};
+	case StelStatType::MP: if (!BlockStealMP) { 
+		shStil = stealMP;  infoStat.stat = StatType::UnitMP;
+	};
+	case StelStatType::Stam: if (!BlockStealStam) { 
+		shStil = stealStam; infoStat.stat = StatType::UnitStam;
+	};
+	}
+	if (isRandom(shStil) && shStil>0){
+		out = true;
+		shStil= getStat(infoStat.stat);
+		if ((shStil - value) < 0) {
+			infoStat.value = shStil;
+		}else{ infoStat.value = value; }
+		OwnerStel->addStat(infoStat);
+		infoStat.value *=-1;
+		addStat(infoStat);
+	}
+	return out;
+}
+
+bool UcStatUnit::UnitDMG(UcStatUnit*  OwnerDMG, bool isMagicDMG, float valueDMG) {
+	bool out = true;
+	float dmg =  (isMagicDMG) ? valueDMG : OwnerDMG->Attack; 
+	if (!isMagicDMG && !isRandom(evasionShans)) {
+		if (isRandom(cretShans)) {
+			dmg *= cretX;
+		}
+		if (isRandom(addDMGShans)) {
+			dmg += addDMG;
+		}
+		if (!BlockMicroStan && OwnerDMG->ifMicroStan && isRandom(microStanShans)) {
+			UpdatMicroStam.Broadcast();
+		}
+	}
+	if(out){
+		dmg = StatMaxMin(dmg - Defender, UnitHPMax, 0);
+		if (dmg>0){
+			UnitHP = StatMaxMin(UnitHP + dmg, UnitHPMax, 0);
+			if (UnitHP <= 0) { dFUpdatDeath.Broadcast(); }
+			dUpdatHP.Broadcast();
+		}
+	}
+	return out;
+}
+ 
