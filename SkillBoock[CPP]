@@ -1,0 +1,355 @@
+USkillBoock::USkillBoock()
+{
+	PrimaryComponentTick.bCanEverTick = false;
+}
+
+void USkillBoock::BeginPlay()
+{
+	Super::BeginPlay(); 
+ 
+	if (isGeneretStartElements && getStartElementsIndex()<0) { // StartCrete One Element
+		
+		StartElements(PowerMinElements, PowerMaxElements);
+	}
+	for (int32 i = 0; i < skillEqupmMax; i++) {
+		skillEquipment.Add( FSkillPage());
+	}
+	
+}
+
+void USkillBoock::StartElements(int32 MinPower, int32 MaxPower) {
+	TArray<Elements> RandomElement = { Elements::Water,Elements::Fire,Elements::Air,Elements::Earth,Elements::Lightning,Elements::Nature };
+	int32 indexNewElement=FMath::FRandRange(0, 6);
+	indexNewElement = addElement(RandomElement[indexNewElement]);
+	for (int32 i = 0, maxPower; i < MaxElemenStyle; i++) {
+		maxPower = FMath::FRandRange(MinPower, MaxPower);
+		ElementStruct[indexNewElement].PointStyse[i] = maxPower;
+	 }
+	ElementStruct[indexNewElement].isCongenital = true;
+}
+
+int32 USkillBoock:: getElementIndex(Elements ElementType) {
+	int32 oytput = -1,i=0;
+	if (ElementType != Elements::None) {
+		for (FElementStruct Element : ElementStruct) {
+			if (Element.element == ElementType) {
+				oytput = i;
+				break;
+			}
+			i++;
+		}
+	}
+	return oytput;
+}
+
+int32 USkillBoock::getStartElementsIndex() {
+	int32 index = -1,i=0;
+	for (FElementStruct Element : ElementStruct){
+		if (Element.isCongenital) { index = i; break; }
+		i++;
+	}
+	return index;
+}
+
+void USkillBoock::addPoint(FElementStruct element, int32 value) {
+	int32 BuferPoint=value,buferNext= element.PointNextlvl;
+	if (element.Pointlvl + BuferPoint >= element.PointNextlvl) {
+		BuferPoint -= element.PointNextlvl;
+		element.Pointlvl = 0;
+		addLVL(element, 1);
+		element.PointNextlvl *= (1 + NextLVLConst);
+	}else { element.Pointlvl += BuferPoint; }
+        if (BuferPoint > buferNext) { addPoint(element, BuferPoint - buferNext); }
+    
+}
+int32 USkillBoock::getElementPoint(Elements ElementType) {
+	int32 out = 0, indexElement = getElementIndex(ElementType);
+	if (indexElement >= 0) {
+		out = ElementStruct[indexElement].Pointlvl;
+	}
+	return out;
+}
+int32 USkillBoock::getElementLvL(Elements ElementType) {
+	int32 out = 0, indexElement = getElementIndex(ElementType);
+	if (indexElement >= 0) {
+		out = ElementStruct[indexElement].lvl;
+	}
+	return out;
+}
+bool USkillBoock::addElementPoint(Elements ElementType,int32 value) {
+	bool oytput = false; 
+	int32 index, i = 0;
+	if (ElementType != Elements::None) {
+	  index = getElementIndex(ElementType);
+	  if (index >= 0) {
+		  addPoint(ElementStruct[index], value);
+		  oytput = true;
+	  }
+	}
+	return oytput;
+}
+
+bool USkillBoock::addLVL(FElementStruct element, int32 value) {
+	bool oytput = false;
+	int32 bufer;
+	bufer = element.lvl + value;
+	oytput= (bufer <=MaxElementsLVL && bufer>0);
+	if (oytput) {element.lvl = bufer;
+	} else if(element.lvl>MaxElementsLVL){ element.lvl = MaxElementsLVL;
+	}else if (element.lvl<0) { element.lvl = 0; }
+	return oytput;
+}
+
+bool USkillBoock::addSkillLVLforType(Elements ElementType, int32 value) {
+	bool oytput = false;
+	int32 index;
+	if (ElementType != Elements::None) {
+		index = getElementIndex(ElementType);
+		if (index >= 0) {
+		    addLVL(ElementStruct[index], value);
+			oytput = true;
+		}
+	}
+   return oytput;
+}
+
+bool USkillBoock::addPointStyle(Elements ElementType, int32 indexStyle, int32 value) {
+	bool oytput = false;
+	int32 index;
+	if (ElementType != Elements::None) {
+		index= getElementIndex(ElementType);
+		if (index >= 0) {
+			ElementStruct[index].PointStyse[indexStyle] += value;
+			if (ElementStruct[index].PointStyse[indexStyle] > PointStyleMax) {
+				ElementStruct[index].PointStyse[indexStyle] = PointStyleMax;
+			}else if (ElementStruct[index].PointStyse[indexStyle] < 0) {
+				ElementStruct[index].PointStyse[indexStyle] = 0; 
+			}
+			oytput = true;
+		}
+	}
+	return oytput;
+}
+
+int32 USkillBoock::getPointStyle(Elements ElementType, int32 indexStyle) {
+	int32 oytput = -1;
+	if (ElementType != Elements::None) {
+		oytput = getElementIndex(ElementType);
+		if (oytput >= 0) { oytput = ElementStruct[oytput].PointStyse[indexStyle];
+		}else{ oytput = -1; }
+	}
+	return oytput;
+}
+
+bool USkillBoock:: setAllPointStyle(Elements ElementType,TArray<int32> value) {
+	bool oytput = false;
+	if (ElementType != Elements::None) {
+		for (int32 i = 0; i < MaxElemenStyle; i++) {
+			addPointStyle(ElementType, i, value[i]);
+		}
+	}
+	return oytput;
+}
+
+int32 USkillBoock:: addElement(Elements ElementType) {
+	int32 oytput = -1;
+	int32 index = getElementIndex(ElementType);
+	if (index < 0) { 
+		FElementStruct bufer = FElementStruct();
+		bufer.element = ElementType;
+		
+		ElementStruct.Emplace(bufer);
+	}
+	oytput = getElementIndex(ElementType);
+	return oytput;
+}
+
+bool USkillBoock::removeElement(Elements ElementType) {
+	bool oytput = false;
+	int32 index = getElementIndex(ElementType);
+	if (index >= 0) {
+		ElementStruct.RemoveAt(index);
+		oytput = false;
+	}
+	return oytput;
+}
+
+TArray<FSkillPage> USkillBoock::getSkillMemory(bool isInvOrEqup) {
+	if (isInvOrEqup) { return skillInventory;
+	} else { return skillEquipment; }
+}
+
+int32 USkillBoock::getSkillValue() {return skillValue;}
+
+FSkillPage USkillBoock:: getSkill(bool isInvOrEqup, int32 Index) {
+	if (isInvOrEqup) {return skillInventory[Index];
+	}else { return skillEquipment[Index]; }
+}
+
+int32 USkillBoock::getSkillindex(bool isInvOrEqup, FName skillKey) {
+	int32 indexSkill = -1,i=0;
+	 for (FSkillPage skillB : getSkillMemory(isInvOrEqup)) {
+		 if (skillB.SkillKey == skillKey){
+			 indexSkill = i;
+			 break;
+		 }
+		 i++;
+	 }
+	return indexSkill;
+}
+
+bool USkillBoock::addSkill(bool isInvOrEqup, FSkillPage skill) {
+    bool oytput = false;
+	int32 i = 0;
+	if ((isInvOrEqup ? skillValue : skillEqupmValue) +1<= (isInvOrEqup ? skillMax : skillEqupmMax)) {
+		for (FSkillPage skillB : (isInvOrEqup ? skillInventory : skillEquipment)) {
+			if (skillB.SkillKey == "None") {
+				if (isInvOrEqup) { 
+					skillInventory[i] = skill; }
+				else {
+					skillEquipment[i] = skill;
+				}
+				oytput = true;
+				break;
+			}
+			i++;
+		}
+		if (!oytput ) {
+			if (isInvOrEqup) {
+				skillInventory.Add(skill);
+			}else {
+				skillEquipment.Add(skill);
+			}
+			oytput = true;
+		}
+		addValueSkill(isInvOrEqup,1);
+	}
+	return oytput;
+}
+
+void USkillBoock::addValueSkill(bool isInvOrEqup, int32 value) {
+	if(isInvOrEqup){
+	  skillValue=skillValue + value;
+	  if (skillValue > skillMax) { skillValue = skillMax; }
+	  else if (skillValue < 0) { skillValue = 0; }
+	}
+	else {
+		skillEqupmValue = skillEqupmValue + value;
+		if (skillEqupmValue > skillEqupmMax) { skillEqupmValue = skillEqupmMax; }
+		else if (skillEqupmValue < 0) { skillEqupmValue = 0; }
+	}
+}
+
+bool USkillBoock::removeSkill(bool isInvOrEqup, int32 index) {
+	 bool oytput = false;
+	FSkillPage* skill;
+	 if (getSkillValue() >= 1) {
+		 if (isInvOrEqup) {
+			 skill = &skillInventory[index];
+		 }else { skill = &skillEquipment[index]; }
+		 if (skill->SkillKey != "None") {
+			 skill->SkillKey = "None";
+			 setPageDestroi(*skill);
+			 addValueSkill(isInvOrEqup,-1);
+			 oytput = true;
+		 }
+	 }
+	 return oytput;
+}
+
+void USkillBoock::setBookInfo(TArray<FElementStruct> elements, TArray<FSkillPage>  Inventry, TArray<FSkillPage>  Equpment) {
+	ElementStruct = elements;
+	skillValue = 0;
+	for (FSkillPage e : Inventry) {
+		if(e.SkillKey!="None"){ skillValue++; }}
+	if (skillValue > 0) {skillInventory = Inventry;}
+	skillEqupmValue = 0;
+	for (FSkillPage e : Equpment) {
+		if (e.SkillKey != "None") { skillEqupmValue++;}}
+	if (skillEqupmValue > 0) { skillEquipment = Equpment; }
+}
+ 
+int32 USkillBoock::ifHveSkill(FSkillPage skill) {
+	int32 index = -1,bufer=0;
+	for (FSkillPage e : skillInventory) {
+		if (skill.SkillKey==e.SkillKey) {
+			index=bufer;
+			break;
+		}
+		bufer++;
+	}
+	return index;
+}
+
+void USkillBoock::addSkillLVL(bool isInvOrEqup,int32 indexSkill, int32 value) {
+		if (isInvOrEqup) {
+			 skillInventory[indexSkill].LVLSkill += value;
+			 if (skillInventory[indexSkill].LVLSkill >= skillInventory[indexSkill].LVLSkillMax) { skillInventory[indexSkill].LVLSkill = skillInventory[indexSkill].LVLSkillMax; }
+		}else {
+			 skillEquipment[indexSkill].LVLSkill += value;
+			 if (skillEquipment[indexSkill].LVLSkill >= skillEquipment[indexSkill].LVLSkillMax) { skillEquipment[indexSkill].LVLSkill = skillEquipment[indexSkill].LVLSkillMax; }
+		}
+}
+
+void USkillBoock::addEqupmUnblockSkill(int32 value) {
+	EqupmUnblock += value;
+	if (EqupmUnblock > skillEqupmMax) { EqupmUnblock = skillEqupmMax; }
+	else if (EqupmUnblock < 0) { EqupmUnblock = 0; }
+}
+
+bool USkillBoock::MoveSkill(bool RootInvOrEqup, bool ifTo, int32 indexRoot, int32 indexMove, bool ifBufer) {
+	bool out = false;
+	FSkillPage* sRoot = &skillInventory[0];
+	FSkillPage*	sEquip = &skillEquipment[0];
+	FSkillPage  bufer;
+	if (RootInvOrEqup) {
+		   sRoot = &skillInventory[indexRoot];
+		if (ifTo) {
+			sEquip = &skillInventory[indexMove];
+		}else {
+			sEquip = &skillEquipment[indexMove];
+		}
+	}else {
+		 sRoot = &skillEquipment[indexRoot];
+		 if (ifTo) {
+			 sEquip = &skillEquipment[indexMove];
+		 } else {
+			 sEquip = &skillInventory[indexMove];
+		 }
+	}
+	if(ifBufer || sEquip->SkillKey == "None"){
+	  if (ifBufer) { bufer = *sEquip; }
+	  setPageInfo(*sEquip, *sRoot);
+	  out = true;
+	  if (ifBufer) { 
+		setPageInfo(*sRoot, bufer);
+	  }else {
+		// sRoot->SkillKey = "None";
+		setPageDestroi(*sRoot);
+		addValueSkill(true,  (RootInvOrEqup) ? -1 : 1);
+		addValueSkill(false, (RootInvOrEqup) ? 1 : -1);
+      }
+	}
+	return out;
+}
+
+int32 USkillBoock::FreeSlot(bool isInvOrEqup) {
+	int32 index = 0,ind=0;
+	for (FSkillPage s : getSkillMemory(isInvOrEqup)) {
+		if (s.SkillKey == "None") { index = ind; break; }
+		ind++;
+	}
+	return index;
+}
+
+bool USkillBoock::UseSkill(int32 index) {
+	bool out = false;
+	FSkillPage* skill = &skillEquipment[index];
+	if (!skill->useSkill) {
+		out = true;
+		skill->CD = skill->CDsleep;
+		skill->useSkill = true;
+		//CreateStartDami.,.....
+	}
+	return out;
+}
