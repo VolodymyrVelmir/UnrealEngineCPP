@@ -1,8 +1,5 @@
 #include "cFigure.h"
-#include "cPlayerController.h"
-#include "cGameState.h"
-#include "cLocationFigure.h"
-#include "cBulet.h"
+
 
 AcFigure::AcFigure()
 {
