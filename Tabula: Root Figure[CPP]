@@ -1,0 +1,106 @@
+#include "cFigure.h"
+#include "cPlayerController.h"
+#include "cGameState.h"
+#include "cLocationFigure.h"
+#include "cBulet.h"
+
+AcFigure::AcFigure()
+{
+	PrimaryActorTick.bCanEverTick = false;
+	cStats = CreateDefaultSubobject<UcStats>(TEXT("FigureStats"));
+	ModelInterect = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("ModelInterect"));
+	ModelInterect->SetupAttachment(RootComponent);
+	if (isOnn) {
+		cStats->dUpdatDeath.AddDynamic(this, &AcFigure::DeathFigure);
+		cStats->dUpdateAllStat.AddDynamic(this, &AcFigure::UpdateStatAtack);
+	}
+}
+
+void AcFigure::BeginPlay()
+
+{
+	if (isOnn) {
+		Super::BeginPlay();
+	}
+}
+
+void AcFigure::Tick(float DeltaTime)
+{
+	Super::Tick(DeltaTime);
+
+}
+
+void  AcFigure::UpdateAllModel() {
+	UMaterialInterface* Texture = (Fraction == 0) ? GoldTexture : SilverTexture;
+	for (UStaticMeshComponent* buferM : ModelsElement) {
+		buferM->SetMaterial(0, Texture);
+	}
+}
+
+void AcFigure::UpdateModelColor(TArray<UStaticMeshComponent*> Models) {
+	ModelsElement = Models;
+}
+void AcFigure::SetActorInfo(int32 FractionIndex) {
+	Fraction = FractionIndex;
+	dUpdatFraction.Broadcast();
+	UpdateAllModel();
+}
+int32  AcFigure::GetPower(){
+	return cStats->getStat(StatsType::Power);
+}
+
+void  AcFigure::ColisionSelectStart(UPrimitiveComponent* PrimitiveComponent)
+{
+	if(isOnn){
+		if (!isSelected && gState->getPlayerMoved()->Fraction == Fraction && !isBlockSelect) {
+			Super::ColisionSelectStart(PrimitiveComponent);
+			gState->getPlayerMoved()->SetSelectedFigure(true, this);
+		}
+	}
+}
+
+void  AcFigure::ColisionSelectEnd(UPrimitiveComponent* PrimitiveComponent)
+{
+	if (isOnn) {
+		if (isSelected  && gState->getPlayerMoved()->Fraction == Fraction && !isBlockSelect) {
+			Super::ColisionSelectEnd(PrimitiveComponent);
+			gState->getPlayerMoved()->SetSelectedFigure(false, this);
+			if (isShowWidgetStarts) SetShowWidgetStarts(false);
+		}
+	}
+}
+void  AcFigure::SetShowWidgetStarts(bool isShow) {
+	isShowWidgetStarts = isShow;
+	dUpdatUI.Broadcast(isShowWidgetStarts);
+}
+
+bool AcFigure::useSkill() {
+	bool flag = false;
+	if (isStatSkill && (UseSkillMax>0 && isUseSkillMax) || !isUseSkillMax) {
+		if(gState->isHavePointMove(Fraction, PointsUseSkill)){
+			if (StatSkill== StatsType::Attack) { //dami attack
+			    gState->getWorld()->AttackFigure(Fraction, this);
+			}else {
+				gState->getWorld()->AddModification(this, true, StatSkill);
+				UseSkillMax--;
+					gState->addPointMove(Fraction, PointsUseSkill*-1, false);
+			}
+			dUpdatUseSkill.Broadcast(UseSkillMax<=0);
+			flag = true;
+	   }
+	}
+	return flag;
+}
+
+void AcFigure::DeathFigure() {
+	LocationPoint->addFigure(false, this);
+	isDeath = true;
+	gState->getPlayerIndex(Fraction)->ClearSelecters(this);
+	if(isStatMove)gState->World->AddModification(this, false, StatMove);
+	this->Destroy();
+}
+
+void AcFigure::UpdateStatAtack(StatsType Type, int32 value)
+{
+	dUpdateStat.Broadcast(value, Type);
+}
