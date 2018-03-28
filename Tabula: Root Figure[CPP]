@@ -19,15 +19,12 @@ AcFigure::AcFigure()
 void AcFigure::BeginPlay()
 
 {
-	if (isOnn) {
-		Super::BeginPlay();
-	}
+  if (isOnn) { Super::BeginPlay(); }
 }
 
 void AcFigure::Tick(float DeltaTime)
 {
-	Super::Tick(DeltaTime);
-
+  Super::Tick(DeltaTime);
 }
 
 void  AcFigure::UpdateAllModel() {
@@ -40,11 +37,13 @@ void  AcFigure::UpdateAllModel() {
 void AcFigure::UpdateModelColor(TArray<UStaticMeshComponent*> Models) {
 	ModelsElement = Models;
 }
+
 void AcFigure::SetActorInfo(int32 FractionIndex) {
 	Fraction = FractionIndex;
 	dUpdatFraction.Broadcast();
 	UpdateAllModel();
 }
+
 int32  AcFigure::GetPower(){
 	return cStats->getStat(StatsType::Power);
 }
