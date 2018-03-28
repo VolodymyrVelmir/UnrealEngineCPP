@@ -1,0 +1,163 @@
+
+
+#include "cPlayerController.h"
+
+void AcPlayerController::BeginPlay()
+{
+	Super::BeginPlay();
+	GameState = (AcGameState*)GetWorld()->GetGameState();
+}
+
+
+void AcPlayerController::SetAiInfo(bool isAiOnn, int32 FractionIndex) {
+	isAi = isAiOnn;
+	if (!isAiOnn) {
+		bShowMouseCursor = true;
+		//EnableMouseTouchEvents = true;
+		bEnableMouseOverEvents = true;
+
+	}
+	FractionIndex = Fraction;
+}
+
+
+TArray<TSubclassOf<AcFigure>> AcPlayerController::GetDeckInfo() { return DeckFigures; }
+
+AcWorld* AcPlayerController::gWorld() { return GameState->World; }
+
+void AcPlayerController::ShowMouseHand(bool isShow) {
+	if (isShow) {
+		CurrentMouseCursor = EMouseCursor::Hand;
+	}else {
+		CurrentMouseCursor = EMouseCursor::Default;
+	}
+}
+
+void AcPlayerController::SetSelectedFigure(bool isAdd, AcFigure* Figure) {
+	 if (isAdd) {
+		SelectFigure = Figure;
+		isSelectFigure = true;
+	}else if(Figure== SelectFigure){
+		SelectFigure = nullptr;
+		isSelectFigure = false;
+	} 
+}
+
+void AcPlayerController::SetSelectedLocation(bool isAdd, AcLocationFigure* SelectLocationA) {
+	if (isAdd) {
+		SelectLocation = SelectLocationA;
+		isSelectLocation = true;
+	}
+	else if (SelectLocation == SelectLocationA) {
+		SelectLocation = nullptr;
+		isSelectLocation = false;
+	}
+}
+
+void AcPlayerController::ClickLeft() {
+	int32 index,NeedsPoint=0;
+	AcLocationFigure* Loc;
+	bool flag = false;
+	if (isSelectFigure ) {
+		if (SelectFigure->isShowWidgetStarts  && SelectFigure->LocationPoint->StartPoint && !SelectFigure->isBlockMove) { //UseSkil
+		 	if(SelectFigure->isStatSkill) SelectFigure->useSkill();
+		}else { flag = true; }
+	}else { flag = true; }
+	if (flag) {
+		flag = false;
+		if (!isSelectFigureDamy && isSelectFigure) {
+				SelectFigureDamy = SelectFigure;
+				isSelectFigureDamy = true;
+				if (!SelectFigureDamy->LocationPoint->StartPoint)
+					SelectFigureDamy->LocationPoint->SetTestMove(true);
+				SelectFigureDamy->LocationPoint->ShowPoint(true, false, true);
+				SelectFigureDamy->SetActorHiddenInGame(true);
+				SetSelectedFigure(false, SelectFigure);
+		}else if (isSelectFigureDamy && isSelectLocation) {
+			NeedsPoint = 4 - SelectFigureDamy->LocationPoint->IndexInLine;
+			if (SelectFigureDamy->LocationPoint->isLastLine 
+				  && GameState->isHavePointMove(SelectFigureDamy->Fraction, NeedsPoint)
+				  && SelectLocation->isHause 
+				  && SelectLocation->Fraction != SelectFigureDamy->Fraction
+				) {
+				GameState->addPointMove(SelectFigureDamy->Fraction, NeedsPoint*-1,false);
+				if (!SelectLocation->StartPoint && SelectFigureDamy->isStatMove && !SelectFigureDamy->isNoRemoveMoveStat) { //- modificator
+					gWorld()->AddModificationAllLine(SelectFigureDamy->Fraction, SelectFigureDamy->LocationPoint->Index, false, SelectFigureDamy->StatMove);
+				}
+				SelectFigureDamy->LocationPoint->addFigure(false, nullptr);
+				gWorld()->addFigureStart(SelectFigureDamy->Fraction, SelectFigureDamy);
+				SelectFigureDamy->isBlockSelect = true;
+				SelectFigureDamy->isBlockMove = true;
+				SelectFigureDamy = nullptr;
+				SelectLocation = nullptr;
+				isSelectFigureDamy = false;
+				isSelectLocation = false;
+				//EndMove
+			}else {
+				if (SelectLocation->Index == 0) {
+					NeedsPoint = 1;
+					flag = true;
+				}else if (SelectFigureDamy->LocationPoint->Index < SelectLocation->Index || SelectFigureDamy->LocationPoint->StartPoint) {
+					index = SelectLocation->Index;
+					Loc = gWorld()->getLocationInMemory(false, index - 1, SelectFigureDamy->Fraction);
+					NeedsPoint = SelectLocation->Index + ((SelectFigureDamy->LocationPoint->StartPoint) ? 1 : (SelectFigureDamy->LocationPoint->Index*-1));
+					if ((!Loc->isEmpty && !Loc->isEndLine) || (Loc->isEndLine && (Loc->isEmpty && !gWorld()->getLocationInMemory(false, index - 2, SelectFigureDamy->Fraction)->isEmpty) || (!Loc->isEmpty && Loc->isTestMove))){
+						flag = true;
+					}
+				}
+				if (flag && GameState->isHavePointMove(SelectFigureDamy->Fraction, NeedsPoint)) {
+					GameState->addPointMove(SelectFigureDamy->Fraction, NeedsPoint*-1,false);
+
+					if (!SelectLocation->StartPoint && SelectFigureDamy->isStatMove && !SelectFigureDamy->isNoRemoveMoveStat) { //- modificator;
+						gWorld()->AddModificationAllLine(SelectFigureDamy->Fraction, SelectFigureDamy->LocationPoint->Index, false, SelectFigureDamy->StatMove);
+					}
+					if (!SelectFigureDamy->LocationPoint->StartPoint) {
+						SelectFigureDamy->LocationPoint->SetTestMove(false);
+					}
+					SelectFigureDamy->SetActorHiddenInGame(false);
+					SelectFigureDamy->LocationPoint->ShowPoint(false, true, true);
+
+					if (SelectFigureDamy->LocationPoint->StartPoint) {
+						gWorld()->RemoveFigureStart(SelectFigureDamy->LocationPoint->Index, Fraction);
+					}
+					else {
+						SelectFigureDamy->LocationPoint->addFigure(false, nullptr);
+					}
+					SelectFigureDamy->LocationPoint = SelectLocation;
+					SelectFigureDamy->LocationPoint->ShowLinghtDelegate.Broadcast(0);
+					SelectLocation->addFigure(true, SelectFigureDamy);
+					if (!SelectLocation->isHause && SelectFigureDamy->isStatMove) { //+ modificator
+						gWorld()->AddModificationAllLine(SelectFigureDamy->Fraction, SelectFigureDamy->LocationPoint->Index, true, SelectFigureDamy->StatMove);
+					}
+					SelectFigureDamy = nullptr;
+					SelectLocation = nullptr;
+					isSelectFigureDamy = false;
+					isSelectLocation = false;
+				}
+			}
+		}
+	}
+}
+
+void AcPlayerController::ClickRight() {
+	if (isSelectFigure && !isSelectLocation) {
+		//UE_LOG(LogTemp, Log, TEXT("TEST"));
+		SelectFigure->SetShowWidgetStarts(!SelectFigure->isShowWidgetStarts);
+	}else if(isSelectFigureDamy){
+			SelectFigureDamy->SetActorHiddenInGame(false);
+			SelectFigureDamy->LocationPoint->ShowPoint(false, true, true);
+			if (!SelectFigureDamy->LocationPoint->StartPoint) {
+				SelectFigureDamy->LocationPoint->SetTestMove(false);
+			}	
+			SelectFigureDamy = nullptr;
+			isSelectFigureDamy = false;
+	}
+}
+
+void AcPlayerController::ClearSelecters(AcFigure* Figure) {
+	if (isSelectFigureDamy && Figure== SelectFigureDamy) {
+		SelectFigureDamy = nullptr;
+		isSelectFigureDamy = false;
+	}
+}
+
